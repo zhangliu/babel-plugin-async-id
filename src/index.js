@@ -5,11 +5,11 @@ const ID_NAME = '__CTRIP_ASYNC_ID__'
 export default function({types: t }) {
   return {
     visitor: {
-      'IfStatement'(path, state) {
+      IfStatement(path, state) {
         t.ensureBlock(path.node, 'consequent')
       },
 
-      'ForStatement'(path, state) {
+      ForStatement(path, state) {
         t.ensureBlock(path.node)
       },
 
@@ -38,6 +38,16 @@ export default function({types: t }) {
       AwaitExpression(path, state) {
         const funcName = path.node.argument.callee.name
         insertFuncBefore(t, path, funcName)
+      },
+
+      ClassMethod(path, state) {
+        const funcName = path.node.key.name
+        if (funcName) insertFuncBodyBefore(t, path, funcName)
+      },
+
+      ObjectMethod(path, state) {
+        const funcName = path.node.key.name
+        if (funcName) insertFuncBodyBefore(t, path, funcName)
       }
     }
   };
@@ -55,11 +65,21 @@ const insertFuncBodyBefore = (t, path, funcName) => {
 const getFuncName = (path) => {
   switch (path.node.callee.type) {
     case 'MemberExpression':
-      const objName = _.get(path, 'node.callee.object.name')
+      const objName = getObjName(path)
       const propName = _.get(path, 'node.callee.property.name')
       return `${objName}.${propName}`
     default:
       return _.get(path, 'node.callee.name')
+  }
+}
+
+const getObjName = (path) => {
+  const property = _.get(path, 'node.callee.object', {})
+  switch (property.type) {
+    case 'ThisExpression':
+      return 'this'
+    default:
+      return property.name
   }
 }
 
